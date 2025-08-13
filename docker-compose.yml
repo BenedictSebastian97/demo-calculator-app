@@ -3,9 +3,43 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: calculator_db
+      POSTGRES_USER: calculator
+      POSTGRES_PASSWORD: password
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calculator -d calculator_db"]
+      interval: 5s
+      timeout: 1s
+      retries: 5
 
   backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     environment:
-      - FLASK_ENV=development
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://calculator:password@db:5432/calculator_db
+    ports:
+      - 5005:5000
+    depends_on:
+      db:
+        condition: service_healthy
 
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      REACT_APP_API_URL: http://localhost:5005
+    ports:
+      - 3000:3000
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
